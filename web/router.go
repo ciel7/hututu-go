@@ -1,6 +1,9 @@
 package web
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // 代表路由树(森林)
 // 支持对路由树的操作
@@ -20,7 +23,7 @@ func newRouter() *router {
 
 // AddRoute 需要加一些限制
 // path 必须以 / 开头，不能以 / 结尾，中间也不可以有连续的 //
-func (r *router) AddRoute(method string, path string, handleFunc HandleFunc) {
+func (r *router) addRoute(method string, path string, handleFunc HandleFunc) {
 	if path == "" {
 		panic("web: 路径不可为空")
 	}
@@ -49,6 +52,10 @@ func (r *router) AddRoute(method string, path string, handleFunc HandleFunc) {
 	// 如果注册根节点需要特殊处理
 	// 因为后续直接用strings.Split会导致segs元素是空字符串
 	if path == "/" {
+		// 根节点重复注册
+		if root.handler != nil {
+			panic("web: 路由冲突 重复注册[/]")
+		}
 		root.handler = handleFunc
 		return
 	}
@@ -68,6 +75,9 @@ func (r *router) AddRoute(method string, path string, handleFunc HandleFunc) {
 		root = children // 下次从 children 继续找
 	}
 
+	if root.handler != nil {
+		panic(fmt.Sprintf("web: 路由冲突，重复注册[%s]", root.path))
+	}
 	root.handler = handleFunc
 }
 

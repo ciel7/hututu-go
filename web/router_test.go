@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestRouter_AddRoute(t *testing.T) {
+func TestRouter_addRoute(t *testing.T) {
 	// 1. 构造路由树
 	// 2. 验证路由树
 	testRoutes := []struct {
@@ -48,7 +48,7 @@ func TestRouter_AddRoute(t *testing.T) {
 
 	r := newRouter()
 	for _, route := range testRoutes {
-		r.AddRoute(route.method, route.path, mockHandler)
+		r.addRoute(route.method, route.path, mockHandler)
 	}
 
 	// 预期路由树
@@ -111,24 +111,41 @@ func TestRouter_AddRoute(t *testing.T) {
 	r = newRouter()
 	// 验证在特定条件下，一个函数是否会触发程序崩溃（Panic）
 	assert.Panicsf(t, func() {
-		r.AddRoute(http.MethodGet, "", mockHandler)
+		r.addRoute(http.MethodGet, "", mockHandler)
 	}, "web: 路径不可为空")
 
 	r = newRouter()
 	// 验证在特定条件下，一个函数是否会触发程序崩溃（Panic）
 	assert.Panicsf(t, func() {
-		r.AddRoute(http.MethodGet, "user", mockHandler)
+		r.addRoute(http.MethodGet, "user", mockHandler)
 	}, "web: 路径必须以 / 开头")
 
 	r = newRouter()
 	assert.Panicsf(t, func() {
-		r.AddRoute(http.MethodGet, "/user/", mockHandler)
+		r.addRoute(http.MethodGet, "/user/", mockHandler)
 	}, "web: 路径不能以 / 结尾")
 
 	r = newRouter()
 	assert.Panicsf(t, func() {
-		r.AddRoute(http.MethodGet, "/user//home", mockHandler)
+		r.addRoute(http.MethodGet, "/user//home", mockHandler)
 	}, "web: 不能有连续的 /")
+
+	r = newRouter()
+	r.addRoute(http.MethodGet, "/", mockHandler)
+	assert.Panicsf(t, func() {
+		r.addRoute(http.MethodGet, "/", mockHandler)
+	}, "web: 路由冲突 重复注册[/]")
+
+	r = newRouter()
+	r.addRoute(http.MethodGet, "/a/b/c/d", mockHandler)
+	assert.Panicsf(t, func() {
+		r.addRoute(http.MethodGet, "/a/b/c/d", mockHandler)
+	}, "web: 路由冲突 重复注册[/a/b/c/d]")
+
+	// 可用的 HTTP method 要不要校验 ---> 不需要, 把 AddRoute 改成私有的，让用户无法调用，那么用户只能使用框架提供的 Get、Post之类的方法
+	// r.AddRoute("aaa", "/a/b/c/d", mockHandler)
+	// r.addRoute("aaa", "/a/b/c/d", mockHandler)
+	// mockHandler 为 nil 呢？要不要校验
 }
 
 func (r *router) equal(y *router) (string, bool) {
