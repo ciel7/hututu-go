@@ -47,7 +47,6 @@ func TestRouter_AddRoute(t *testing.T) {
 	}
 
 	r := newRouter()
-
 	for _, route := range testRoutes {
 		r.AddRoute(route.method, route.path, mockHandler)
 	}
@@ -108,6 +107,28 @@ func TestRouter_AddRoute(t *testing.T) {
 	// assert.Equal(t, r, wantRouter) // 该方法不可行，因为HandleFunc是不可比的
 	msg, ok := wantRouter.equal(r)
 	assert.True(t, ok, msg)
+
+	r = newRouter()
+	// 验证在特定条件下，一个函数是否会触发程序崩溃（Panic）
+	assert.Panicsf(t, func() {
+		r.AddRoute(http.MethodGet, "", mockHandler)
+	}, "web: 路径不可为空")
+
+	r = newRouter()
+	// 验证在特定条件下，一个函数是否会触发程序崩溃（Panic）
+	assert.Panicsf(t, func() {
+		r.AddRoute(http.MethodGet, "user", mockHandler)
+	}, "web: 路径必须以 / 开头")
+
+	r = newRouter()
+	assert.Panicsf(t, func() {
+		r.AddRoute(http.MethodGet, "/user/", mockHandler)
+	}, "web: 路径不能以 / 结尾")
+
+	r = newRouter()
+	assert.Panicsf(t, func() {
+		r.AddRoute(http.MethodGet, "/user//home", mockHandler)
+	}, "web: 不能有连续的 /")
 }
 
 func (r *router) equal(y *router) (string, bool) {
