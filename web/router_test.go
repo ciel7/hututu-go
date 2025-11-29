@@ -18,11 +18,14 @@ func TestRouter_AddRoute(t *testing.T) {
 	}{
 		{
 			method: http.MethodGet,
-			path:   "/user/home",
+			path:   "/",
+		}, {
+			method: http.MethodGet,
+			path:   "/user",
 		},
 		{
 			method: http.MethodGet,
-			path:   "/",
+			path:   "/user/home",
 		},
 	}
 
@@ -44,7 +47,8 @@ func TestRouter_AddRoute(t *testing.T) {
 				handler: mockHandler,
 				children: map[string]*node{
 					"user": &node{
-						path: "user",
+						path:    "user",
+						handler: mockHandler,
 						children: map[string]*node{
 							"home": &node{
 								path:    "home",
