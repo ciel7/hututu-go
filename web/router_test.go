@@ -19,13 +19,26 @@ func TestRouter_AddRoute(t *testing.T) {
 		{
 			method: http.MethodGet,
 			path:   "/",
-		}, {
+		},
+		{
 			method: http.MethodGet,
 			path:   "/user",
 		},
 		{
 			method: http.MethodGet,
 			path:   "/user/home",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/order/detail",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/order/create",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/login",
 		},
 	}
 
@@ -55,6 +68,36 @@ func TestRouter_AddRoute(t *testing.T) {
 								handler: mockHandler,
 							},
 						},
+					},
+					"order": &node{
+						path: "order",
+						//handler: mockHandler,
+						children: map[string]*node{
+							"detail": &node{
+								path:    "detail",
+								handler: mockHandler,
+							},
+						},
+					},
+				},
+			},
+			http.MethodPost: &node{
+				path: "/",
+				//handler: mockHandler,
+				children: map[string]*node{
+					"order": &node{
+						path: "order",
+						//handler: mockHandler,
+						children: map[string]*node{
+							"create": &node{
+								path:    "create",
+								handler: mockHandler,
+							},
+						},
+					},
+					"login": &node{
+						path:    "login",
+						handler: mockHandler,
 					},
 				},
 			},
