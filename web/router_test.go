@@ -20,6 +20,10 @@ func TestRouter_AddRoute(t *testing.T) {
 			method: http.MethodGet,
 			path:   "/user/home",
 		},
+		{
+			method: http.MethodGet,
+			path:   "/",
+		},
 	}
 
 	// 新增路由树
@@ -36,7 +40,8 @@ func TestRouter_AddRoute(t *testing.T) {
 	wantRouter := &router{
 		trees: map[string]*node{
 			http.MethodGet: &node{
-				path: "/",
+				path:    "/",
+				handler: mockHandler,
 				children: map[string]*node{
 					"user": &node{
 						path: "user",

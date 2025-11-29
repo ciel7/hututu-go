@@ -30,6 +30,13 @@ func (r *router) AddRoute(method string, path string, handleFunc HandleFunc) {
 		r.trees[method] = root
 	}
 
+	// 如果注册根节点需要特殊处理
+	// 因为后续直接用strings.Split会导致segs元素是空字符串
+	if path == "/" {
+		root.handler = handleFunc
+		return
+	}
+
 	// 切割 path
 	path = strings.TrimLeft(path, "/")
 	// 目的是要把path的每一段都加入到路由中去
