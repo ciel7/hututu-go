@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 )
@@ -29,7 +30,7 @@ type Server interface {
 	// AddRoutes 允许注册多个路由，没有必要提供，可以让用户自己去管
 	// 如果允许注册多个，那么在实现的时候就要考虑，其中一个失败了，是否还允许继续执行下去；
 	// 反过来，如果其中一个 HandleFunc 要中断执行，怎么中断。
-	AddRoutes(method string, path string, handleFunc ...HandleFunc)
+	//AddRoutes(method string, path string, handleFunc ...HandleFunc)
 }
 
 // HTTPSServer 变成了 HTTPServer 的装饰器
@@ -38,7 +39,16 @@ type HTTPSServer struct {
 }
 
 type HTTPServer struct {
-	Addr string // 可以改成这样，即创建的时候传递，而不是在 Start 的时候接收
+	// Addr string // 可以改成这样，即创建的时候传递，而不是在 Start 的时候接收
+	// router
+	// r *router
+	*router
+}
+
+func NewHTTPServer() *HTTPServer {
+	return &HTTPServer{
+		router: newRouter(),
+	}
 }
 
 // ServeHTTP 核心: 处理请求的入口
@@ -52,16 +62,12 @@ func (h *HTTPServer) ServeHTTP(writer http.ResponseWriter, request *http.Request
 	h.serve(ctx)
 }
 
-func (h *HTTPServer) serve(ctx *Context) {
-	// 接下来就是查找路由，并且执行命中的业务逻辑
-
-}
-
 func (h *HTTPServer) Start(addr string) error {
 	// 也可以自己创建 Server
 	// http.Server{}
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
+		fmt.Println("err", err.Error())
 		return err
 	}
 
@@ -71,14 +77,19 @@ func (h *HTTPServer) Start(addr string) error {
 	return http.Serve(l, h)
 }
 
-func (h *HTTPServer) Start1() error {
-	return http.ListenAndServe(h.Addr, h)
+//func (h *HTTPServer) Start1() error {
+//	return http.ListenAndServe(h.Addr, h)
+//}
+
+func (h *HTTPServer) serve(ctx *Context) {
+	// 接下来就是查找路由，并且执行命中的业务逻辑
 }
 
-func (h *HTTPServer) AddRoute(method string, path string, handleFunc HandleFunc) {
-	// 注册到路由树里
-	panic("implement me")
-}
+//func (h *HTTPServer) AddRoute(method string, path string, handleFunc HandleFunc) {
+//	// 注册到路由树里
+//	//panic("implement me")
+//	fmt.Println("implement me AddRoute")
+//}
 
 func (h *HTTPServer) Get(path string, handleFunc HandleFunc) {
 	h.AddRoute(http.MethodGet, path, handleFunc)
@@ -100,6 +111,6 @@ func (h *HTTPServer) Options(path string, handleFunc HandleFunc) {
 	h.AddRoute(http.MethodOptions, path, handleFunc)
 }
 
-func (h *HTTPServer) AddRoutes(method string, path string, handleFunc ...HandleFunc) {
-	panic("implement me")
-}
+//func (h *HTTPServer) AddRoutes(method string, path string, handleFunc ...HandleFunc) {
+//	panic("implement me")
+//}
