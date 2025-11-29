@@ -40,9 +40,9 @@ type HTTPSServer struct {
 
 type HTTPServer struct {
 	// Addr string // 可以改成这样，即创建的时候传递，而不是在 Start 的时候接收
-	// router
+	// *router
 	// r *router
-	*router
+	router
 }
 
 func NewHTTPServer() *HTTPServer {

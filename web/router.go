@@ -15,8 +15,8 @@ type router struct {
 	trees map[string]*node
 }
 
-func newRouter() *router {
-	return &router{
+func newRouter() router {
+	return router{
 		trees: map[string]*node{},
 	}
 }
