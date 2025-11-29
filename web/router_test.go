@@ -105,7 +105,7 @@ func TestRouter_addRoute(t *testing.T) {
 
 	// 断言两棵树一致: 新增路由树 和 预期路由树
 	// assert.Equal(t, r, wantRouter) // 该方法不可行，因为HandleFunc是不可比的
-	msg, ok := wantRouter.equal(r)
+	msg, ok := wantRouter.equal(&r)
 	assert.True(t, ok, msg)
 
 	r = newRouter()
