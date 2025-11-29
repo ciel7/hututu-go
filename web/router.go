@@ -21,7 +21,7 @@ func newRouter() *router {
 	}
 }
 
-// AddRoute 需要加一些限制
+// addRoute 需要加一些限制
 // path 必须以 / 开头，不能以 / 结尾，中间也不可以有连续的 //
 func (r *router) addRoute(method string, path string, handleFunc HandleFunc) {
 	if path == "" {
@@ -71,14 +71,45 @@ func (r *router) addRoute(method string, path string, handleFunc HandleFunc) {
 		}
 		// 递归下去，找准位置
 		// 如果中途有节点不存在，就要创建该节点
-		children := root.childOrCreate(seg)
-		root = children // 下次从 children 继续找
+		child := root.childOrCreate(seg)
+		root = child // 下次从 children 继续找
 	}
 
 	if root.handler != nil {
 		panic(fmt.Sprintf("web: 路由冲突，重复注册[%s]", root.path))
 	}
 	root.handler = handleFunc
+}
+
+func (r *router) findRoute(method string, path string) (*node, bool) {
+	// 沿着树深度查下去
+	root, ok := r.trees[method]
+	if !ok {
+		return nil, false
+	}
+
+	if path == "" {
+		return root, true
+	}
+
+	// 把前置后置的 / 都去掉
+	path = strings.Trim(path, "/")
+	segs := strings.Split(path, "/")
+	for _, seg := range segs {
+		if seg == "" {
+			continue
+		}
+		child, found := root.childOf(seg)
+		if !found {
+			return nil, false
+		}
+		root = child // 下次从 children 继续找
+	}
+	// 代表确实有这个节点
+	// 但该节点是不是用户注册有handler的，就不一定了
+	return root, true
+	// 下面的则表示确实有这个节点 && 该节点有注册的handler
+	//return root, root.handler != nil
 }
 
 func (n *node) childOrCreate(seg string) *node {
@@ -94,6 +125,15 @@ func (n *node) childOrCreate(seg string) *node {
 		n.children[seg] = res
 	}
 	return res
+}
+
+func (n *node) childOf(path string) (*node, bool) {
+	if n.children == nil {
+		return nil, false
+	}
+
+	child, ok := n.children[path]
+	return child, ok
 }
 
 type node struct {

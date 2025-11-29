@@ -196,3 +196,141 @@ func (n *node) equal(y *node) (string, bool) {
 
 	return "", true
 }
+
+func TestRouter_findRoute(t *testing.T) {
+	testRoutes := []struct {
+		method string
+		path   string
+		//HandleFunc
+	}{
+		{
+			method: http.MethodGet,
+			path:   "/",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/user",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/user/home",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/order/detail",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/order/create",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/login",
+		},
+	}
+
+	r := newRouter()
+	// 新增路由树
+	var mockHandler HandleFunc = func(ctx Context) {
+	}
+
+	for _, route := range testRoutes {
+		// 注册路由
+		r.addRoute(route.method, route.path, mockHandler)
+	}
+
+	testCases := []struct {
+		name   string
+		method string
+		path   string
+
+		wantFound bool
+		wantNode  *node
+	}{
+		{
+			name:      "method not found",
+			method:    http.MethodOptions,
+			path:      "/order/detail",
+			wantFound: false,
+		},
+		{
+			name:      "order detail",
+			method:    http.MethodGet,
+			path:      "/order/detail",
+			wantFound: true,
+			wantNode: &node{
+				handler: mockHandler,
+				path:    "detail",
+			},
+		},
+		{
+			name:      "order",
+			method:    http.MethodGet,
+			path:      "/order",
+			wantFound: true,
+			wantNode: &node{
+				path: "order",
+				children: map[string]*node{
+					"detail": &node{
+						path:    "detail",
+						handler: mockHandler,
+					},
+				},
+			},
+		},
+		{
+			name:      "path not found",
+			method:    http.MethodDelete,
+			path:      "/",
+			wantFound: false,
+		},
+		{
+			name:      "root",
+			method:    http.MethodGet,
+			path:      "/",
+			wantFound: true,
+			wantNode: &node{
+				path:    "/",
+				handler: mockHandler,
+				children: map[string]*node{
+					"user": &node{
+						path:    "user",
+						handler: mockHandler,
+						children: map[string]*node{
+							"home": &node{
+								path:    "home",
+								handler: mockHandler,
+							},
+						},
+					},
+					"order": &node{
+						path: "order",
+						children: map[string]*node{
+							"detail": &node{
+								path:    "detail",
+								handler: mockHandler,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		// t.Run 会创建一个新的子测试，
+		// 第一个参数 tc.name 是子测试的名称，通常具有描述性，比如 "found_exact_match" 或 "not_found_with_wildcard".
+		// 第二个参数是一个匿名函数，它是子测试的主体。注意：这个函数内部的 t 是一个新的 *testing.T 实例，专门用于这个子测试。
+		t.Run(tc.name, func(t *testing.T) {
+			findNode, found := r.findRoute(tc.method, tc.path)
+			assert.Equal(t, tc.wantFound, found)
+			if !found {
+				return
+			}
+			//assert.Equal(t, tc.wantNode.path, findNode.path)
+			//assert.Equal(t, tc.wantNode.children, findNode.children)
+			msg, ok := tc.wantNode.equal(findNode)
+			assert.True(t, ok, msg)
+		})
+	}
+}

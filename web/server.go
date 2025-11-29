@@ -15,22 +15,22 @@ type HandleFunc func(ctx Context)
 var _ Server = &HTTPSServer{}
 
 // Server 遇事不决先接口
-// 不在这里实现Get、Post等，保证接口的小而美，可以在外面通过调用AddRoute实现这些方法
+// 不在这里实现Get、Post等，保证接口的小而美，可以在外面通过调用addRoute实现这些方法
 type Server interface {
 	http.Handler
 	Start(string) error
 	//Start1() error
 
-	// AddRoute 路由注册
+	// addRoute 路由注册
 	// method HTTP方法
 	// path 路由
 	// handleFunc 业务逻辑
-	AddRoute(method string, path string, handleFunc HandleFunc)
+	addRoute(method string, path string, handleFunc HandleFunc)
 
-	// AddRoutes 允许注册多个路由，没有必要提供，可以让用户自己去管
+	// addRoutes 允许注册多个路由，没有必要提供，可以让用户自己去管
 	// 如果允许注册多个，那么在实现的时候就要考虑，其中一个失败了，是否还允许继续执行下去；
 	// 反过来，如果其中一个 HandleFunc 要中断执行，怎么中断。
-	//AddRoutes(method string, path string, handleFunc ...HandleFunc)
+	//addRoutes(method string, path string, handleFunc ...HandleFunc)
 }
 
 // HTTPSServer 变成了 HTTPServer 的装饰器
@@ -85,32 +85,32 @@ func (h *HTTPServer) serve(ctx *Context) {
 	// 接下来就是查找路由，并且执行命中的业务逻辑
 }
 
-//func (h *HTTPServer) AddRoute(method string, path string, handleFunc HandleFunc) {
+//func (h *HTTPServer) addRoute(method string, path string, handleFunc HandleFunc) {
 //	// 注册到路由树里
 //	//panic("implement me")
-//	fmt.Println("implement me AddRoute")
+//	fmt.Println("implement me addRoute")
 //}
 
 func (h *HTTPServer) Get(path string, handleFunc HandleFunc) {
-	h.AddRoute(http.MethodGet, path, handleFunc)
+	h.addRoute(http.MethodGet, path, handleFunc)
 }
 
 func (h *HTTPServer) Post(path string, handleFunc HandleFunc) {
-	h.AddRoute(http.MethodPost, path, handleFunc)
+	h.addRoute(http.MethodPost, path, handleFunc)
 }
 
 func (h *HTTPServer) Put(path string, handleFunc HandleFunc) {
-	h.AddRoute(http.MethodPut, path, handleFunc)
+	h.addRoute(http.MethodPut, path, handleFunc)
 }
 
 func (h *HTTPServer) Delete(path string, handleFunc HandleFunc) {
-	h.AddRoute(http.MethodDelete, path, handleFunc)
+	h.addRoute(http.MethodDelete, path, handleFunc)
 }
 
 func (h *HTTPServer) Options(path string, handleFunc HandleFunc) {
-	h.AddRoute(http.MethodOptions, path, handleFunc)
+	h.addRoute(http.MethodOptions, path, handleFunc)
 }
 
-//func (h *HTTPServer) AddRoutes(method string, path string, handleFunc ...HandleFunc) {
+//func (h *HTTPServer) addRoutes(method string, path string, handleFunc ...HandleFunc) {
 //	panic("implement me")
 //}
