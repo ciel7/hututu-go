@@ -43,7 +43,7 @@ func TestRouter_addRoute(t *testing.T) {
 	}
 
 	// 新增路由树
-	var mockHandler HandleFunc = func(ctx Context) {
+	var mockHandler HandleFunc = func(ctx *Context) {
 	}
 
 	r := newRouter()
@@ -231,7 +231,7 @@ func TestRouter_findRoute(t *testing.T) {
 
 	r := newRouter()
 	// 新增路由树
-	var mockHandler HandleFunc = func(ctx Context) {
+	var mockHandler HandleFunc = func(ctx *Context) {
 	}
 
 	for _, route := range testRoutes {

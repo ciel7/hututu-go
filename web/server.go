@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-type HandleFunc func(ctx Context)
+type HandleFunc func(ctx *Context)
 
 // 如果 HTTPSServer 没有完全实现 Server 接口要求的所有方法，编译就会报错。
 // 它是一种静态验证机制，确保类型满足接口契约，而不会在运行时才暴露问题。
@@ -83,6 +83,14 @@ func (h *HTTPServer) Start(addr string) error {
 
 func (h *HTTPServer) serve(ctx *Context) {
 	// 接下来就是查找路由，并且执行命中的业务逻辑
+	n, ok := h.findRoute(ctx.Req.Method, ctx.Req.URL.Path)
+	if !ok || n.handler == nil {
+		// 路由没有命中，返回 404
+		ctx.Resp.WriteHeader(404)
+		_, _ = ctx.Resp.Write([]byte("NOT FOUND"))
+		return
+	}
+	n.handler(ctx)
 }
 
 //func (h *HTTPServer) addRoute(method string, path string, handleFunc HandleFunc) {
