@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -33,6 +34,12 @@ func TestServer(t *testing.T) {
 		//handler1(ctx)
 		//handler2(ctx)
 		ctx.Resp.Write([]byte("Hello, Order Detail!"))
+	})
+
+	h.Get("/order/abc", func(ctx *Context) {
+		//handler1(ctx)
+		//handler2(ctx)
+		ctx.Resp.Write([]byte(fmt.Sprintf("Hello, %s", ctx.Req.URL.Path)))
 	})
 
 	// 注意在使用 h.Get 之前需要把 var h Server = &HTTPServer{} 改成 h := &HTTPServer{}
