@@ -42,6 +42,12 @@ func TestServer(t *testing.T) {
 		ctx.Resp.Write([]byte(fmt.Sprintf("Hello, %s", ctx.Req.URL.Path)))
 	})
 
+	h.Get("/login/:username", func(ctx *Context) {
+		for k, v := range ctx.PathParams {
+			ctx.Resp.Write([]byte(fmt.Sprintf("Hello, %s: %s", k, v)))
+		}
+	})
+
 	// 注意在使用 h.Get 之前需要把 var h Server = &HTTPServer{} 改成 h := &HTTPServer{}
 	// 因为 Server 接口类型是没有 Get 方法的，Get是通过调用 AddRoute 实现的
 	//h.Get("/user", handler1)

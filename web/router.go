@@ -81,7 +81,7 @@ func (r *router) addRoute(method string, path string, handleFunc HandleFunc) {
 	root.handler = handleFunc
 }
 
-func (r *router) findRoute(method string, path string) (*node, bool) {
+func (r *router) findRoute(method string, path string) (*matchInfo, bool) {
 	// 沿着树深度查下去
 	root, ok := r.trees[method]
 	if !ok {
@@ -89,31 +89,59 @@ func (r *router) findRoute(method string, path string) (*node, bool) {
 	}
 
 	if path == "" {
-		return root, true
+		return &matchInfo{
+			n: root,
+		}, true
 	}
 
 	// 把前置后置的 / 都去掉
 	path = strings.Trim(path, "/")
 	segs := strings.Split(path, "/")
+	var pathParams map[string]string
 	for _, seg := range segs {
 		if seg == "" {
 			continue
 		}
-		child, found := root.childOf(seg)
+		child, paramChild, found := root.childOf(seg)
 		if !found {
 			return nil, false
+		}
+		// 命中路径参数
+		if paramChild {
+			if pathParams == nil {
+				pathParams = make(map[string]string)
+			}
+			// path 是 :id 这样的格式
+			pathParams[child.path[1:]] = seg
 		}
 		root = child // 下次从 children 继续找
 	}
 	// 代表确实有这个节点
 	// 但该节点是不是用户注册有handler的，就不一定了
-	return root, true
+	return &matchInfo{
+		n:          root,
+		pathParams: pathParams,
+	}, true
 	// 下面的则表示确实有这个节点 && 该节点有注册的handler
 	//return root, root.handler != nil
 }
 
 func (n *node) childOrCreate(seg string) *node {
+	//if strings.Contains(seg, ":") {
+	if seg[0] == ':' {
+		if n.starChild != nil {
+			panic("web: 不允许同时注册路径参数和通配符匹配(已有通配符匹配)")
+		}
+		n.paramChild = &node{
+			path: seg,
+		}
+		return n.paramChild
+	}
+
 	if seg == "*" {
+		if n.paramChild != nil {
+			panic("web: 不允许同时注册路径参数和通配符匹配(已有路径参数)")
+		}
 		if n.starChild == nil {
 			n.starChild = &node{
 				path: seg,
@@ -135,8 +163,12 @@ func (n *node) childOrCreate(seg string) *node {
 	return res
 }
 
-// childOf 匹配优先级 静态匹配 > 通配符匹配
-func (n *node) childOf(path string) (*node, bool) {
+// childOf 匹配优先级 静态匹配 > 路径参数匹配 > 通配符匹配
+// 参数
+// *node 子节点
+// bool 是否为路径参数
+// bool 节点是否被命中
+func (n *node) childOf(path string) (*node, bool, bool) {
 	//if path == "*" {
 	//	if n.starChild == nil {
 	//		return nil, false
@@ -146,14 +178,20 @@ func (n *node) childOf(path string) (*node, bool) {
 
 	if n.children == nil {
 		//return nil, false
-		return n.starChild, n.starChild != nil
+		if n.paramChild != nil {
+			return n.paramChild, true, true
+		}
+		return n.starChild, false, n.starChild != nil
 	}
 
 	child, ok := n.children[path]
 	if !ok {
-		return n.starChild, n.starChild != nil
+		if n.paramChild != nil {
+			return n.paramChild, true, true
+		}
+		return n.starChild, false, n.starChild != nil
 	}
-	return child, ok
+	return child, false, ok
 }
 
 type node struct {
@@ -163,9 +201,17 @@ type node struct {
 	// 子 path 到子节点的映射
 	children map[string]*node
 
-	// 用户注册的业务逻辑
-	handler HandleFunc
-
 	// 通配符 * 表达的节点，任意匹配
 	starChild *node
+
+	// 路径参数
+	paramChild *node
+
+	// 用户注册的业务逻辑
+	handler HandleFunc
+}
+
+type matchInfo struct {
+	n          *node
+	pathParams map[string]string
 }
