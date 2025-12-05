@@ -62,6 +62,19 @@ func (h *HTTPServer) ServeHTTP(writer http.ResponseWriter, request *http.Request
 	h.serve(ctx)
 }
 
+func (h *HTTPServer) serve(ctx *Context) {
+	// 接下来就是查找路由，并且执行命中的业务逻辑
+	info, ok := h.findRoute(ctx.Req.Method, ctx.Req.URL.Path)
+	if !ok || info == nil || info.n == nil || info.n.handler == nil {
+		// 路由没有命中，返回 404
+		ctx.Resp.WriteHeader(404)
+		_, _ = ctx.Resp.Write([]byte("NOT FOUND"))
+		return
+	}
+	ctx.PathParams = info.pathParams
+	info.n.handler(ctx)
+}
+
 func (h *HTTPServer) Start(addr string) error {
 	// 也可以自己创建 Server
 	// http.Server{}
@@ -80,19 +93,6 @@ func (h *HTTPServer) Start(addr string) error {
 //func (h *HTTPServer) Start1() error {
 //	return http.ListenAndServe(h.Addr, h)
 //}
-
-func (h *HTTPServer) serve(ctx *Context) {
-	// 接下来就是查找路由，并且执行命中的业务逻辑
-	info, ok := h.findRoute(ctx.Req.Method, ctx.Req.URL.Path)
-	if !ok || info == nil || info.n == nil || info.n.handler == nil {
-		// 路由没有命中，返回 404
-		ctx.Resp.WriteHeader(404)
-		_, _ = ctx.Resp.Write([]byte("NOT FOUND"))
-		return
-	}
-	ctx.PathParams = info.pathParams
-	info.n.handler(ctx)
-}
 
 //func (h *HTTPServer) addRoute(method string, path string, handleFunc HandleFunc) {
 //	// 注册到路由树里
