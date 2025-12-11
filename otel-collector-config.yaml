@@ -1,0 +1,39 @@
+receivers:
+  # 接收 OTLP gRPC/HTTP 数据
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  # 输出到 Jaeger
+  jaeger:
+    endpoint: jaeger-all-in-one-1:14250
+    tls:
+      insecure: true
+  # 输出到 Zipkin
+  zipkin:
+    endpoint: http://zipkin-all-in-one-1:9411/api/v2/spans
+  # 日志输出（调试用）
+  logging:
+    loglevel: debug
+
+processors:
+  batch:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger, zipkin, logging]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]

@@ -9,9 +9,20 @@ import (
 )
 
 type Context struct {
-	Req        *http.Request
-	Resp       http.ResponseWriter
+	Req *http.Request
+
+	// Resp 如果用户直接使用这个
+	// 那么他们就绕开了 RespData 和 RespStatusCode
+	// 部分 Middleware 就无法使用
+	// 主要是为了 Middleware 的读写用的
+	// 所以我们需要新增 RespData 和 RespStatusCode 供用户使用
+	Resp           http.ResponseWriter
+	RespData       []byte
+	RespStatusCode int
+
 	PathParams map[string]string
+
+	MatchedRoute string
 
 	queryValues url.Values
 }
@@ -30,12 +41,14 @@ func (c *Context) RespJSON(status int, val any) error {
 	c.Resp.WriteHeader(status)
 	c.Resp.Header().Set("Content-Type", "application/json")
 	c.Resp.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	n, err := c.Resp.Write(data)
-	if err != nil || n != len(data) {
-		//return err
-		return errors.New("web: 未写入全部数据")
-	}
-	return err
+	//n, err := c.Resp.Write(data)
+	//if err != nil || n != len(data) {
+	//	//return err
+	//	return errors.New("web: 未写入全部数据")
+	//}
+	c.RespData = data
+	c.RespStatusCode = status
+	return nil
 }
 
 func (c *Context) SetCookie(ck *http.Cookie) {

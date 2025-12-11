@@ -38,18 +38,66 @@ type HTTPSServer struct {
 	HTTPServer
 }
 
+// HTTPServer HTTP服务器核心结构体
 type HTTPServer struct {
 	// Addr string // 可以改成这样，即创建的时候传递，而不是在 Start 的时候接收
 	// *router
 	// r *router
-	router
+	router              // 路由实例（由newRouter()创建）
+	mdls   []Middleware // 中间件列表
+
+	log func(msg string, args ...any)
 }
 
-func NewHTTPServer() *HTTPServer {
-	return &HTTPServer{
+// HTTPServerOption 选项函数类型
+// 本质是"接收*HTTPServer的函数"，用于修改服务器实例的属性
+type HTTPServerOption func(server *HTTPServer)
+
+// NewHTTPServerV1 这种方案不如 NewHTTPServer，缺乏扩展性
+func NewHTTPServerV1(mdls ...Middleware) *HTTPServer {
+	res := &HTTPServer{
 		router: newRouter(),
+		mdls:   mdls,
+	}
+	return res
+}
+
+// NewHTTPServer 创建 HTTP 服务器的构造函数
+func NewHTTPServer(opts ...HTTPServerOption) *HTTPServer {
+	// 创建默认的HTTPServer实例
+	res := &HTTPServer{
+		router: newRouter(), // 初始化路由（默认值）
+		// mdls 没有显式初始化，默认是nil切片
+		log: func(msg string, args ...any) {
+			fmt.Printf(msg, args...)
+		},
+	}
+
+	// 遍历所有传入的选项函数，逐个修改服务器实例
+	for _, opt := range opts {
+		opt(res) // 执行选项函数，把默认实例传进去修改
+	}
+	// 返回最终配置好的服务器实例
+	return res
+}
+
+// ServerWithMiddleware 生成「设置中间件」的选项函数
+// 「工厂函数」—— 接收用户想要设置的中间件列表；
+// 返回一个「选项函数」（符合 HTTPServerOption 类型）；
+// 把中间件列表赋值给 HTTPServer 的 mdls 字段
+func ServerWithMiddleware(mdls ...Middleware) HTTPServerOption {
+	// 返回一个符合HTTPServerOption类型的匿名函数
+	return func(server *HTTPServer) {
+		// 把传入的中间件列表赋值给服务器的mdls字段
+		server.mdls = mdls
 	}
 }
+
+//func NewHTTPServer() *HTTPServer {
+//	return &HTTPServer{
+//		router: newRouter(),
+//	}
+//}
 
 // ServeHTTP 核心: 处理请求的入口
 func (h *HTTPServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -58,8 +106,59 @@ func (h *HTTPServer) ServeHTTP(writer http.ResponseWriter, request *http.Request
 		Req:  request,
 		Resp: writer,
 	}
+	// h.serve(ctx)
 
-	h.serve(ctx)
+	// 最后一个是这个 var root func(ctx *Context) = h.serve
+	root := h.serve
+
+	// 利用最后一个 Middleware 不断往前回溯组装一个 中间件 chain
+	// 从后往前，把后一个作为前一个执行顺序上的 next 1 2 3 4 5
+	for i := len(h.mdls) - 1; i >= 0; i-- {
+		root = h.mdls[i](root) // type Middleware func(next HandleFunc) HandleFunc
+	}
+
+	//root = serve
+	//root = m3(root)  // root 现在是 m3(serve)
+	//root = m2(root)  // root 现在是 m2(m3(serve))
+	//root = m1(root)  // root 现在是 m1(m2(m3(serve)))
+	//最终 root 是一个层层嵌套的调用链：m1 -> m2 -> m3 -> serve
+
+	// 那么在这里执行的时候，就是从前往后执行了
+
+	// 这里需要把 RespData 和 RespStatusCode 刷新到最终响应里面
+	var m Middleware = func(next HandleFunc) HandleFunc {
+		return func(ctx *Context) {
+			// 就设置到了 RespData 和 RespStatusCode
+			next(ctx)
+			h.flashResp(ctx)
+		}
+	}
+
+	//m(m1(m2(m3(serve))))
+	root = m(root)
+	root(ctx)
+
+	// 展开后的执行顺序：
+	//1. 调用 m 返回的函数，传入 ctx
+	//2. 在 m 函数内部：调用 next(ctx) → 这个 next 是 m1(m2(m3(serve)))
+	//3. 在 m1 函数内部：调用 next(ctx) → 这个 next 是 m2(m3(serve))
+	//4. 在 m2 函数内部：调用 next(ctx) → 这个 next 是 m3(serve)
+	//5. 在 m3 函数内部：调用 next(ctx) → 这个 next 是 serve
+	//6. 在 serve 函数内部：执行业务逻辑（路由匹配、处理请求）
+	//7. 返回到 m3，执行 m3 中 next 之后的代码
+	//8. 返回到 m2，执行 m2 中 next 之后的代码
+	//9. 返回到 m1，执行 m1 中 next 之后的代码
+	//10. 返回到 flashMw，执行 flashResp 刷新响应
+}
+
+func (h *HTTPServer) flashResp(ctx *Context) {
+	if ctx.RespStatusCode != 0 {
+		ctx.Resp.WriteHeader(ctx.RespStatusCode)
+	}
+	n, err := ctx.Resp.Write(ctx.RespData)
+	if err != nil || n != len(ctx.RespData) {
+		h.log("http resp 写入异常: %v", err)
+	}
 }
 
 func (h *HTTPServer) serve(ctx *Context) {
@@ -67,11 +166,14 @@ func (h *HTTPServer) serve(ctx *Context) {
 	info, ok := h.findRoute(ctx.Req.Method, ctx.Req.URL.Path)
 	if !ok || info == nil || info.n == nil || info.n.handler == nil {
 		// 路由没有命中，返回 404
-		ctx.Resp.WriteHeader(404)
-		_, _ = ctx.Resp.Write([]byte("NOT FOUND"))
+		//ctx.Resp.WriteHeader(404)
+		//_, _ = ctx.Resp.Write([]byte("NOT FOUND"))
+		ctx.RespData = []byte("NOT FOUND")
+		ctx.RespStatusCode = 404
 		return
 	}
 	ctx.PathParams = info.pathParams
+	ctx.MatchedRoute = info.n.route // 命中的路由
 	info.n.handler(ctx)
 }
 

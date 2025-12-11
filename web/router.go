@@ -57,6 +57,7 @@ func (r *router) addRoute(method string, path string, handleFunc HandleFunc) {
 			panic("web: 路由冲突[/]")
 		}
 		root.handler = handleFunc
+		root.route = "/"
 		return
 	}
 
@@ -79,6 +80,7 @@ func (r *router) addRoute(method string, path string, handleFunc HandleFunc) {
 		panic(fmt.Sprintf("web: 路由冲突[%s]", path))
 	}
 	root.handler = handleFunc
+	root.route = path
 }
 
 func (r *router) findRoute(method string, path string) (*matchInfo, bool) {
@@ -314,7 +316,8 @@ const (
 type node struct {
 	typ nodeType
 
-	path string
+	path  string
+	route string
 
 	// 静态匹配节点
 	// 子 path 到子节点的映射

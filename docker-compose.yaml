@@ -1,0 +1,95 @@
+services:
+  redis:
+    image: redis:7.0-alpine
+    command: redis-server --requirepass ""  # 关闭密码（开发用）
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '6379:6379'
+    restart: on-failure
+
+  # MySQL8
+  mysql8:
+    image: mysql:8.0.29
+    restart: on-failure
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: hututu666
+      MYSQL_INITDB_SKIP_TZINFO: "1"  # 解决时区警告
+    volumes:
+      - ./script/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql  # 持久化 MySQL 数据（避免重启丢失）
+    ports:
+      - "13306:3306"
+
+  # Jaeger
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+
+  # Zipkin
+  zipkin-all-in-one:
+    image: openzipkin/zipkin:latest
+    ports:
+      - "19411:9411"
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
+    ports:
+      - "9090:9090"
+
+  etcd:
+    image: 'gcr.io/etcd-development/etcd:v3.5.18'
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    ports:
+#      客户端通信接口
+      - 2379:2379
+#      集群节点通信端口
+      - 2380:2380
+
+  etcdkeeper:
+    image: evildecay/etcdkeeper:latest
+    platform: linux/amd64
+    container_name: "etcdkeeper"
+    ports:
+      - 12000:8080
+    depends_on:
+      - etcd
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.55.0
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888"   # pprof 扩展端口
+      - "8888:8888"   # otel 暴露的 Prometheus 端口
+      - "8889:8889"   # Prometheus exporter 端口
+      - "13133:13133" # 健康检查扩展
+      - "4317:4317"   # OTLP gRPC 接收器端口
+      - "4318:4318"   # OTLP http 接收器端口
+      - "55679:55679" # zpages 扩展端口
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+
+volumes:
+  mysql_data: {} # 持久化 MySQL 数据，确保初始化只执行一次
+
+# 1. 停止并删除所有容器、网络、卷（彻底清理旧状态）
+#docker compose down --volumes --remove-orphans
+
+# 2. 清理 Docker 中无效的网络（避免缓存干扰）
+#docker network prune -f  # -f 强制删除未使用的网络
+
+# 3. （可选）清理残留的孤立容器（若有）
+#docker rm -f $(docker ps -aq --filter name=hututu-go) 2>/dev/null

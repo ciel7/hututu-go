@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 	"testing"
 )
@@ -122,4 +123,35 @@ func (c *SafeContext) RespJSON(status int, val any) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.Context.RespJSON(status, val)
+}
+
+func TestHTTPServer_ServeHTTP(t *testing.T) {
+	server := NewHTTPServer()
+	server.mdls = []Middleware{
+		func(next HandleFunc) HandleFunc {
+			return func(ctx *Context) {
+				fmt.Println("before 1")
+				next(ctx)
+				fmt.Println("after 1")
+			}
+		},
+		func(next HandleFunc) HandleFunc {
+			return func(ctx *Context) {
+				fmt.Println("before 2")
+				next(ctx)
+				fmt.Println("after 2")
+			}
+		},
+		func(next HandleFunc) HandleFunc {
+			return func(ctx *Context) {
+				fmt.Println("中断 3")
+			}
+		},
+		func(next HandleFunc) HandleFunc {
+			return func(ctx *Context) {
+				fmt.Println("看不到 4")
+			}
+		},
+	}
+	server.ServeHTTP(nil, &http.Request{})
 }
