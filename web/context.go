@@ -55,7 +55,7 @@ func (c *Context) SetCookie(ck *http.Cookie) {
 	http.SetCookie(c.Resp, ck)
 }
 
-// BindJSON
+// BindJSON 绑定JSON数据结构
 func (c *Context) BindJSON(val any) error {
 	if val == nil {
 		return errors.New("web: 输入不能为 nil")
